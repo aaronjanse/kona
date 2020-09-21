@@ -224,7 +224,9 @@ I lines(FILE*f)
 
 I line(FILE*f, S*a, I*n, PDA*p)     //just starting or just executed: *a=*n=*p=0,  intermediate is non-zero
 { S s=0; I b=0,c=0,m=0,o=1,q=1; K k; F d; fbr=fer=feci=0; fam=1;
+  // O("b4??\n");
   if(-1==(c=getline_(&s,&m,f))) GC;
+  // O("str: %s\n", s); 
   if(fCheck && 1==strlen(s) && s[0]=='\n')
   { while(1==strlen(s) && s[0]=='\n')
     { prompt(b+fCheck);
@@ -419,22 +421,29 @@ I attend() {  //K3.2 uses fcntl somewhere
 
   fln=1;
   for(;;) { // main loop
+  // O("plz type char...\n");
+  // char casdas = getch();
+  // O("...outputted char: %c\n", casdas);
+    printf("before??\n");
     scrLim = 0;
     read_fds = master; // copy it
+// O("brr plz\n");
     if (-1==select(fdmax+1,&read_fds,0,0,0)) {  //null timeval -> select blocks
       if (errno == EINTR) { interrupted = 0; errno = 0; } //ignore, was interrupted by C-c
       else {perror("select");exit(4);} }
-
+// O("aff plz\n");
     // run through the existing connections looking for data to read
     for(i = 0; i <= fdmax; i++)
+          // O("br plz\n");
       if (FD_ISSET(i, &read_fds)) {
         if(i==STDIN) {
           flc=fCheck=ofCheck=0;
           nbytes=line(stdin,&a,&n,&q);
+          // nbytes=7;
           fln=0;
           if(nbytes<=0){
             if(!IPC_PORT && !HTTP_PORT) exit(0); //Catch CTRL+D
-            else FD_CLR(i,&master);} }
+            else {FD_CLR(i,&master);}} }
         else if(i == listener) {         // handle new connections
           addrlen = sizeof remoteaddr;
           newfd = accept(listener, (struct sockaddr *)&remoteaddr, &addrlen);
@@ -506,6 +515,7 @@ void *socket_thread(void *arg) {
     read_fds = master;
     i=select(nfd,&read_fds,0,0,0); if(-1==i) O("select error\n");
     if(FD_ISSET(listener, &read_fds)) {
+      O("aaa\n");
       addrlen = sizeof remoteaddr;
       SockSet[nxt] = accept(listener, (struct sockaddr *)&remoteaddr, &addrlen);
       if(INVALID_SOCKET==SockSet[nxt]){O("accept() failed with %d\n",WSAGetLastError()); exit(4);}

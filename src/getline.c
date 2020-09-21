@@ -2,6 +2,54 @@
 #include "0.h"
 #include "getline.h"
 
+
+#include <termios.h>
+#include <stdio.h>
+
+static struct termios old, current;
+
+/* Initialize new terminal i/o settings */
+void initTermios(int echo) 
+{
+  tcgetattr(0, &old); /* grab old terminal i/o settings */
+  current = old; /* make new settings same as old settings */
+  current.c_lflag &= ~ICANON; /* disable buffered i/o */
+  if (echo) {
+      current.c_lflag |= ECHO; /* set echo mode */
+  } else {
+      current.c_lflag &= ~ECHO; /* set no echo mode */
+  }
+  tcsetattr(0, TCSANOW, &current); /* use these new terminal i/o settings now */
+}
+
+/* Restore old terminal i/o settings */
+void resetTermios(void) 
+{
+  tcsetattr(0, TCSANOW, &old);
+}
+
+/* Read 1 character - echo defines echo mode */
+char getch_(int echo) 
+{
+  char ch;
+  initTermios(echo);
+  ch = getchar();
+  resetTermios();
+  return ch;
+}
+
+/* Read 1 character without echo */
+char getch(void) 
+{
+  return getch_(0);
+}
+
+/* Read 1 character with echo */
+char getche(void) 
+{
+  return getch_(1);
+}
+
 //Based on BSD's getdelim.c - [BSD License] (c) 2009 David Schultz <das@FreeBSD.org>
 
 I expander(S *s, I n) //grow s? n - needs size
@@ -30,20 +78,130 @@ I appender(S *s, I *n, S t, I k) //concatenate t to s
   R 0;
 }
 
-I getline_(S *s,I *n,FILE *f){R getdelim_(s,n,'\n',f);}
+I getline_(S *s,I *n,FILE *f){
+
+  // s = "1+1\n";
+  // fprintf(stderr, "plz type char:");
+  // fflush(stderr);
+  // char c = getche();
+  // if (c == 'x') {
+  //   exit(0);
+  // }
+  // fprintf(stderr, "\nYou typed: %c\n", c);
+  // fprintf(stdin, "1+1\n");
+  // printf()
+  // O("haha n (b4): %i\n", n);
+
+  // printf("n is: %i\n", n);
+  // int nnn = n;
+  int x = getdelim_(s,n,'\n',f);
+  // n = s + x;
+  // printf("len is: %d\n", s+x);
+  // printf("len is: %d\n", n);
+  // strdupn("1+1",s);
+  // printf("s[0] is: [%s]\n", s[0]);
+  // printf("s[1] is: %x\n", s[1]);
+  // *s = 
+  // n = 5;
+
+  // s[0] = "1+1\n\0";
+  // n = s+5;
+
+  // O("haha x: %i\n", x);
+  // O("haha n: %i\n", n);
+  // int idx = 0;
+  // s[idx] = '1'; idx++;
+  // s[idx] = '1'; idx++;
+  // s[idx] = '\n'; idx++;
+  // s[idx] = '\0'; idx++;
+  // n = s+idx;
+  return x;
+  // s = "1+1\n";
+  // return 5;
+
+  // R getdelim_(s,n,'\n',f);
+}
+
+// char *history[] = [];
+// std::vector<char> hist = {};
+// x.push_back("d");
+
+
+int history_pos = -1;
+
 
 I getdelim_(S *s,I *n,I d,FILE *f)
 {
-  I m; S z;size_t o=*n;
-  if(getdelim(s,&o,d,f)==-1){*n=0; R -1;}
-  *n=o;
-  m=strlenn(*s,*n);
-  if(1<m && '\n'==(*s)[m-1] && '\r'==(*s)[m-2]) {
-    (*s)[--m]='\0'; (*s)[m-1]='\n'; }
-  z=strdupn(*s,m);
+  S z;
+  // getdelim(s,&o,d,f);
+  // *s = "7+7";
+  // printf("plz type char:");
+  // // fflush(stdout);
+  // char c = getch();
+  // if (c == 'x') {
+  //   exit(0);
+  // }
+  // printf("\nYou typed: %c\n", c);
+  // printf("plz type char:");
+  // // fflush(stdout);
+  // c = getch();
+  // if (c == '\n') {
+  //   exit(0);
+  // }
+  // printf("\nYou typed: %c\n", c);
+  // fflush(stdout);
+  int bufsize = 50;
+
+  int position = 0;
+  char *buffer = malloc(sizeof(char) * bufsize);
+  int c;
+
+  while (1) {
+    // Read a character
+    c = getch();
+
+    // If we hit EOF, replace it with a null character and return.
+    if (c == EOF || c == '\n') {
+      buffer[position] = '\0';
+      break;
+    } else if (c == '\033') { // if the first value is esc
+      // getch(); // skip the [
+      // switch(getch()) { // the real value
+      //     case 'A':
+      //         printf("UP ARROW");
+      //         break;
+      //     case 'B':
+      //         // code for arrow down
+      //         break;
+      //     case 'C':
+      //         // code for arrow right
+      //         break;
+      //     case 'D':
+      //         // code for arrow left
+      //         break;
+      // }
+    } else {
+      buffer[position] = c;
+      history_pos = -1;
+    }
+    position++;
+
+    // If we have exceeded the buffer, reallocate.
+    if (position >= bufsize) {
+      bufsize += 50;
+      buffer = realloc(buffer, bufsize);
+      if (!buffer) {
+        fprintf(stderr, "lsh: allocation error\n");
+        exit(EXIT_FAILURE);
+      }
+    }
+  }
+
+  // *n=o;
+  z=strdupn(buffer, position);
   free(*s);
   *s=z;
-  R *n=m;
+  return position;
 }
 
 #if defined(__MACH__) && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1070
@@ -67,6 +225,7 @@ I getdelim(S *s,size_t*n, I d, FILE *f)//target, current capacity, delimiter, fi
     R *n=-1;
   }
 
+
   while ((q = memchr(f->_p, d, f->_r)) == NULL)
   {
     if (appender(s, &w, (S) f->_p, f->_r)) goto error;
@@ -77,7 +236,7 @@ I getdelim(S *s,size_t*n, I d, FILE *f)//target, current capacity, delimiter, fi
     }
   }
   q++;  /* snarf the delimiter, too */
-  if (appender(s, &w, (S) f->_p, q - f->_p)) goto error;
+  if (appender(s, &w, (S) 'a', q - f->_p)) goto error;
   f->_r -= q - f->_p;
   f->_p = q;
 
